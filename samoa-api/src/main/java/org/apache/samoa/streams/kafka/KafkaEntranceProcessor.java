@@ -43,6 +43,8 @@ import java.util.logging.Logger;
 import org.apache.samoa.core.ContentEvent;
 import org.apache.samoa.core.EntranceProcessor;
 import org.apache.samoa.core.Processor;
+import org.apache.samoa.instances.Instances;
+import org.apache.samoa.learners.InstanceContentEvent;
 
 /**
  * Entrance processor that reads incoming messages from <a href="https://kafka.apache.org/">Apache Kafka</a>
@@ -122,5 +124,14 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
         kafkaUtils.closeConsumer();
         super.finalize();
     }
+    
+      public Instances getDataset() {
+        InstanceContentEvent ice;
+    if(hasNext())
+    return ((InstanceContentEvent)nextEvent()).getInstance().dataset();
+    else
+      return null;
+    
+  }
     
 }
