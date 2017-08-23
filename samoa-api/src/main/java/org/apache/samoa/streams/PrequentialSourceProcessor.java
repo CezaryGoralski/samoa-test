@@ -192,6 +192,9 @@ public final class PrequentialSourceProcessor implements EntranceProcessor {
     }
 
     this.streamSource = new StreamSource(stream);
+    
+    logger.info(streamSource != null ? "streamSource is not null" : "streamSource is null");
+    
     firstInstance = streamSource.nextInstance().getData();
   }
 

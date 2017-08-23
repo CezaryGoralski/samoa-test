@@ -93,12 +93,15 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
     @Override
     public boolean hasNext() {
         if (buffer.isEmpty()) {
+        	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Buffer is empty");
             try {
+            	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Trying to fill buffer with kafka messages");
                 buffer.addAll(kafkaUtils.getKafkaMessages());
             } catch (Exception ex) {
                 Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Exiting hasNext()");
         return buffer.size() > 0;
     }
 
@@ -126,11 +129,12 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
     }
     
       public Instances getDataset() {
+    	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Getting dataset");
         InstanceContentEvent ice;
-    if(hasNext())
-    return ((InstanceContentEvent)nextEvent()).getInstance().dataset();
-    else
-      return null;
+		if (hasNext())
+			return ((InstanceContentEvent) nextEvent()).getInstance().dataset();
+		else
+			return null;
     
   }
     

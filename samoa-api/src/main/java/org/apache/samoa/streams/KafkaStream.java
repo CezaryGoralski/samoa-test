@@ -84,8 +84,10 @@ public class KafkaStream extends AbstractOptionHandler implements InstanceStream
 		if (this.instances!=null && this.instances.readInstance()) {
 			this.lastInstanceRead = new InstanceExample(this.instances.instance(0));
 			this.instances.delete(); // keep instances clean
+			logger.info("Reading next instance successful");
 			return true;
 		}
+		logger.info("Reading next instance unsuccessful");
 		return false;
 
 	}
@@ -116,8 +118,10 @@ public class KafkaStream extends AbstractOptionHandler implements InstanceStream
 
 	@Override
 	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
+		logger.info("Initializing KEP with host: "+this.hostOption.getValue()+", port: "+this.portOption.getValue() + ", topic: "+this.topicOption.getValue());
 		kep = new KafkaEntranceProcessor(getConsumerProperties(this.hostOption.getValue(), this.portOption.getValue()), this.topicOption.getValue(), this.timeoutOption.getValue(), new OosSerializer());
 		kep.onCreate(0);
+		logger.info(kep!=null ? "KEP is not null" : "KEP is null");
 	}
 	
 	protected Properties getConsumerProperties(String BROKERHOST, String BROKERPORT) {
