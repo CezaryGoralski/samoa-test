@@ -75,13 +75,15 @@ public class KafkaStream extends AbstractOptionHandler implements InstanceStream
 	@Override
 	public boolean hasMoreInstances() {
 
-		return false;
+		return true;
 	}
 
 	protected boolean readNextInstance() {
 		logger.info("Reading next instance");
 		this.instances = kep.getDataset();
-		if (this.instances!=null && this.instances.readInstance()) {
+                logger.info("Got new instance from Kafka, instances is: " + this.instances);
+		if (this.instances!=null){ // && this.instances.readInstance()) {
+                         logger.info("Got new instance from Kafka, instances(0): " + this.instances.instance(0));
 			this.lastInstanceRead = new InstanceExample(this.instances.instance(0));
 			this.instances.delete(); // keep instances clean
 			logger.info("Reading next instance successful");
