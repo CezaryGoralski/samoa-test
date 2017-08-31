@@ -21,6 +21,7 @@ package org.apache.samoa.tasks;
  */
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Properties;
 
 import org.apache.samoa.evaluation.BasicClassificationPerformanceEvaluator;
 import org.apache.samoa.evaluation.BasicRegressionPerformanceEvaluator;
@@ -35,6 +36,8 @@ import org.apache.samoa.learners.classifiers.trees.VerticalHoeffdingTree;
 import org.apache.samoa.streams.InstanceStream;
 import org.apache.samoa.streams.PrequentialSourceProcessor;
 import org.apache.samoa.streams.generators.RandomTreeGenerator;
+import org.apache.samoa.streams.kafka.KafkaDestinationProcessor;
+import org.apache.samoa.streams.kafka.OosSerializer;
 import org.apache.samoa.topology.ComponentFactory;
 import org.apache.samoa.topology.Stream;
 import org.apache.samoa.topology.Topology;
@@ -166,14 +169,19 @@ public class PrequentialEvaluation implements Task, Configurable {
     if (!PrequentialEvaluation.isLearnerAndEvaluatorCompatible(classifier, evaluatorOptionValue)) {
       evaluatorOptionValue = getDefaultPerformanceEvaluatorForLearner(classifier);
     }
+    
     evaluator = new EvaluatorProcessor.Builder(evaluatorOptionValue)
         .samplingFrequency(sampleFrequencyOption.getValue()).dumpFile(dumpFileOption.getFile()).build();
+    
+    KafkaDestinationProcessor kafkaProcessor = new KafkaDestinationProcessor(getProducerProperties("10.255.240.141", "9092"), "samoa_test", new OosSerializer());
 
     // evaluatorPi = builder.createPi(evaluator);
     // evaluatorPi.connectInputShuffleStream(evaluatorPiInputStream);
     builder.addProcessor(evaluator);
+    builder.addProcessor(kafkaProcessor);
     for (Stream evaluatorPiInputStream : classifier.getResultStreams()) {
       builder.connectInputShuffleStream(evaluatorPiInputStream, evaluator);
+      builder.connectInputShuffleStream(evaluatorPiInputStream, kafkaProcessor);
     }
 
     logger.debug("Successfully instantiating EvaluatorProcessor");
@@ -216,5 +224,15 @@ public class PrequentialEvaluation implements Task, Configurable {
     }
     // Default to BasicClassificationPerformanceEvaluator for all other cases
     return new BasicClassificationPerformanceEvaluator();
+  }
+  
+  protected Properties getProducerProperties(String BROKERHOST, String BROKERPORT) {
+      Properties producerProps = new Properties();
+      producerProps.setProperty("bootstrap.servers", BROKERHOST + ":" + BROKERPORT);
+      producerProps.setProperty("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+      producerProps.setProperty("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+      producerProps.setProperty("group.id", "test");
+      //producerProps.setProperty("client.id", clientId);
+      return producerProps;
   }
 }
