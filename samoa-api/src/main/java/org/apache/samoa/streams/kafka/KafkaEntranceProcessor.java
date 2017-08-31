@@ -130,11 +130,17 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
     
       public Instances getDataset() {
     	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Getting dataset");
-        InstanceContentEvent ice;
-		if (hasNext())
-			return ((InstanceContentEvent) nextEvent()).getInstance().dataset();
-		else
+        
+		if (hasNext()){
+                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "After has next- attempting to get next event from Kafka");
+                    InstanceContentEvent ice = (InstanceContentEvent) nextEvent();
+                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "ICE is: " + ice.toString());
+                    return ice.getInstance().dataset();
+                }
+                else{
+                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "hasNext returned false!");
 			return null;
+                }
     
   }
     
