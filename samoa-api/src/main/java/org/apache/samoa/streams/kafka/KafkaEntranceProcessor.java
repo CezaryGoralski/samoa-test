@@ -43,8 +43,6 @@ import java.util.logging.Logger;
 import org.apache.samoa.core.ContentEvent;
 import org.apache.samoa.core.EntranceProcessor;
 import org.apache.samoa.core.Processor;
-import org.apache.samoa.instances.Instances;
-import org.apache.samoa.learners.InstanceContentEvent;
 
 /**
  * Entrance processor that reads incoming messages from <a href="https://kafka.apache.org/">Apache Kafka</a>
@@ -93,15 +91,12 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
     @Override
     public boolean hasNext() {
         if (buffer.isEmpty()) {
-        	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Buffer is empty");
             try {
-            	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Trying to fill buffer with kafka messages");
                 buffer.addAll(kafkaUtils.getKafkaMessages());
             } catch (Exception ex) {
                 Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Exiting hasNext()");
         return buffer.size() > 0;
     }
 
@@ -127,21 +122,5 @@ public class KafkaEntranceProcessor implements EntranceProcessor {
         kafkaUtils.closeConsumer();
         super.finalize();
     }
-    
-      public Instances getDataset() {
-    	Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "Getting dataset");
-        
-		if (hasNext()){
-                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "After has next- attempting to get next event from Kafka");
-                    InstanceContentEvent ice = (InstanceContentEvent) nextEvent();
-                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "ICE is: " + ice.toString());
-                    return ice.getInstance().dataset();
-                }
-                else{
-                    Logger.getLogger(KafkaEntranceProcessor.class.getName()).log(Level.INFO, "hasNext returned false!");
-			return null;
-                }
-    
-  }
     
 }

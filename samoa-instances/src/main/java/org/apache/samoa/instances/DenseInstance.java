@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.apache.samoa.instances;
 
 /*
@@ -24,51 +20,42 @@ package org.apache.samoa.instances;
  * #L%
  */
 
-/**
- * @author abifet
- */
-public class DenseInstance extends SingleLabelInstance {
+public class DenseInstance extends InstanceImpl {
 
-  private static final long serialVersionUID = 280360594027716737L;
-
-  public DenseInstance() {
-    // necessary for kryo serializer
-  }
-
+  /**
+   * Instantiates a new dense instance.
+   *
+   * @param weight the weight
+   * @param res the res
+   */
   public DenseInstance(double weight, double[] res) {
     super(weight, res);
   }
 
-  public DenseInstance(SingleLabelInstance inst) {
+  /**
+   * Instantiates a new dense instance.
+   *
+   * @param inst the inst
+   */
+  public DenseInstance(InstanceImpl inst) {
     super(inst);
   }
 
+  /**
+   * Instantiates a new dense instance.
+   *
+   * @param inst the inst
+   */
   public DenseInstance(Instance inst) {
-    super((SingleLabelInstance) inst);
+    super((InstanceImpl) inst);
   }
 
+  /**
+   * Instantiates a new dense instance.
+   *
+   * @param numberAttributes the number attributes
+   */
   public DenseInstance(double numberAttributes) {
     super((int) numberAttributes);
-    // super(1, new double[(int) numberAttributes-1]);
-    // Add missing values
-    // for (int i = 0; i < numberAttributes-1; i++) {
-    // //this.setValue(i, Double.NaN);
-    // }
-
-  }
-
-  @Override
-  public String toString() {
-    StringBuffer text = new StringBuffer();
-
-    for (int i = 0; i < this.instanceData.numAttributes(); i++) {
-      if (i > 0) {
-        text.append(",");
-      }
-      text.append(this.value(i));
-    }
-    text.append(",").append(this.weight());
-
-    return text.toString();
   }
 }

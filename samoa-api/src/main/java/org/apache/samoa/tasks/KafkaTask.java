@@ -45,8 +45,6 @@ import com.github.javacliparser.IntOption;
 import com.github.javacliparser.StringOption;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import org.apache.samoa.learners.Learner;
-import org.apache.samoa.learners.classifiers.trees.VerticalHoeffdingTree;
 import org.apache.samoa.streams.kafka.KafkaDeserializer;
 import org.apache.samoa.streams.kafka.KafkaDestinationProcessor;
 import org.apache.samoa.streams.kafka.KafkaEntranceProcessor;
@@ -76,8 +74,6 @@ public class KafkaTask implements Task, Configurable {
   private TopologyBuilder builder;
   private Topology kafkaTopology;
 
-    private Learner classifier;
-    
   public IntOption kafkaParallelismOption = new IntOption("parallelismOption", 'p',
           "Number of destination Processors", 1, 1, Integer.MAX_VALUE);
 
@@ -106,9 +102,7 @@ public class KafkaTask implements Task, Configurable {
 
   public StringOption taskNameOption = new StringOption("taskName", 'n', "Identifier of the task",
           "KafkaTask" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()));
-  
-  public ClassOption learnerOption = new ClassOption("learner", 'l', "Classifier to train.", Learner.class,
-      VerticalHoeffdingTree.class.getName());
+
   /**
    * Class constructor (for tests purposes)
    *
@@ -176,18 +170,6 @@ public class KafkaTask implements Task, Configurable {
     // create stream
     Stream stream = builder.createStream(sourceProcessor);
 
-    // TEST
-    
-        // instantiate classifier and connect it to sourcePiOutputStream
-    classifier = this.learnerOption.getValue();
-    classifier.init(builder, sourceProcessor.getDataset(), 1);
-    
-    builder.connectInputShuffleStream(stream, classifier.getInputProcessor());
-    logger.debug("Successfully instantiating Classifier");
-    
-    
-    
-    
     // create destination processor
     KafkaDestinationProcessor destProcessor = new KafkaDestinationProcessor(producerProps, outTopic, serializer);
     builder.addProcessor(destProcessor, kafkaParallelismOption.getValue());

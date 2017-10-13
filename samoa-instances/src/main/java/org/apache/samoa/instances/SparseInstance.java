@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package org.apache.samoa.instances;
 
 /*
@@ -24,25 +20,44 @@ package org.apache.samoa.instances;
  * #L%
  */
 
-/**
- * 
- * @author abifet
- */
-public class SparseInstance extends SingleLabelInstance {
+public class SparseInstance extends InstanceImpl {
 
+  /**
+   * Instantiates a new sparse instance.
+   *
+   * @param d the d
+   * @param res the res
+   */
   public SparseInstance(double d, double[] res) {
     super(d, res);
   }
 
-  public SparseInstance(SingleLabelInstance inst) {
+  /**
+   * Instantiates a new sparse instance.
+   *
+   * @param inst the inst
+   */
+  public SparseInstance(InstanceImpl inst) {
     super(inst);
   }
 
+  /**
+   * Instantiates a new sparse instance.
+   *
+   * @param numberAttributes the number attributes
+   */
   public SparseInstance(double numberAttributes) {
-    // super(1, new double[(int) numberAttributes-1]);
     super(1, null, null, (int) numberAttributes);
   }
 
+  /**
+   * Instantiates a new sparse instance.
+   *
+   * @param weight the weight
+   * @param attributeValues the attribute values
+   * @param indexValues the index values
+   * @param numberAttributes the number attributes
+   */
   public SparseInstance(double weight, double[] attributeValues, int[] indexValues, int numberAttributes) {
     super(weight, attributeValues, indexValues, numberAttributes);
   }
