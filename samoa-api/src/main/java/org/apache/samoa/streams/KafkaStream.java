@@ -19,9 +19,6 @@ package org.apache.samoa.streams;
  * limitations under the License.
  * #L%
  */
-
-
-import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.samoa.instances.Instance;
@@ -33,100 +30,100 @@ import org.apache.samoa.moa.core.ObjectRepository;
 import org.apache.samoa.moa.options.AbstractOptionHandler;
 import org.apache.samoa.moa.tasks.TaskMonitor;
 import org.apache.samoa.streams.kafka.KafkaEntranceProcessor;
-import org.apache.samoa.streams.kafka.OosSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javacliparser.IntOption;
 import com.github.javacliparser.StringOption;
+import java.nio.charset.Charset;
+import org.apache.samoa.learners.InstanceContentEvent;
+import org.apache.samoa.streams.kafka.KafkaJsonMapper;
 
 public class KafkaStream extends AbstractOptionHandler implements InstanceStream {
-	
-	private static Logger logger = LoggerFactory.getLogger(KafkaStream.class);
-	
-	public StringOption hostOption = new StringOption("host", 'h', "Kafka host address", "127.0.0.1");
-	public StringOption portOption = new StringOption("port", 'p', "Kafka port address", "9092");
-	public StringOption topicOption = new StringOption("topic", 't', "Kafka topic name", "samoa_ff");
-	public IntOption timeoutOption = new IntOption("timeout", 'e', "Kafka timeout", 1000, 0, Integer.MAX_VALUE);
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -4387950661589472853L;
+    private static final Logger logger = LoggerFactory.getLogger(KafkaStream.class);
 
-	protected Instances instances;
-	protected InstanceExample lastInstanceRead;
+    public StringOption hostOption = new StringOption("host", 'h', "Kafka host address", "127.0.0.1");
+    public StringOption portOption = new StringOption("port", 'p', "Kafka port address", "9092");
+    public StringOption topicOption = new StringOption("topic", 't', "Kafka topic name", "samoa_ff");
+    public IntOption timeoutOption = new IntOption("timeout", 'e', "Kafka timeout", 1000, 0, Integer.MAX_VALUE);
 
-	protected boolean hitEndOfStream;
-	private boolean hasStarted;
-	
-	private KafkaEntranceProcessor kep;
+    /**
+     *
+     */
+    private static final long serialVersionUID = -4387950661589472853L;
 
-	@Override
-	public InstancesHeader getHeader() {
-		return new InstancesHeader(this.instances);
-	}
+    protected Instances instances;
+    protected InstanceExample lastInstanceRead;
 
-	@Override
-	public long estimatedRemainingInstances() {
-		return -1;
-	}
+    protected boolean hitEndOfStream;
 
-	@Override
-	public boolean hasMoreInstances() {
+    private KafkaEntranceProcessor kep;
 
-		return true;
-	}
+    @Override
+    public InstancesHeader getHeader() {
+        return new InstancesHeader(this.instances);
+    }
 
-	protected boolean readNextInstance() {
-		logger.info("Reading next instance");
-		this.instances = kep.getDataset();
-                logger.info("Got new instance from Kafka, instances is: " + this.instances);
-		if (this.instances!=null){ // && this.instances.readInstance()) {
-                         logger.info("Got new instance from Kafka, instances(0): " + this.instances.instance(0));
-			this.lastInstanceRead = new InstanceExample(this.instances.instance(0));
-			this.instances.delete(); // keep instances clean
-			logger.info("Reading next instance successful");
-			return true;
-		}
-		logger.info("Reading next instance unsuccessful");
-		return false;
+    @Override
+    public long estimatedRemainingInstances() {
+        return -1;
+    }
 
-	}
+    @Override
+    public boolean hasMoreInstances() {
 
-	@Override
-	public Example<Instance> nextInstance() {
-		if(this.lastInstanceRead==null) 
-			this.readNextInstance();
-		return this.lastInstanceRead;
-	}
+        return true;
+    }
 
-	@Override
-	public boolean isRestartable() {
-		return true;
-	}
+    protected boolean readNextInstance() {
+        logger.info("Reading next instance");
+        this.instances = getDataset();
+        if (this.instances != null) {
+            this.lastInstanceRead = new InstanceExample(this.instances.instance(0));
+            this.instances.delete(); // keep instances clean
+            logger.info("Reading next instance successful");
+            return true;
+        }
+        logger.info("Reading next instance unsuccessful");
+        return false;
 
-	@Override
-	public void restart() {
-		// TODO Auto-generated method stub
+    }
 
-	}
+    @Override
+    public Example<Instance> nextInstance() {
+        if (this.lastInstanceRead == null) {
+            this.readNextInstance();
+        }
+        Example<Instance> ret = this.lastInstanceRead;
+        this.lastInstanceRead = null;
+        return ret;
+    }
 
-	@Override
-	public void getDescription(StringBuilder sb, int indent) {
-		// TODO Auto-generated method stub
+    @Override
+    public boolean isRestartable() {
+        return true;
+    }
 
-	}
+    @Override
+    public void restart() {
+        // TODO Auto-generated method stub
+    }
 
-	@Override
-	protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
-		logger.info("Initializing KEP with host: "+this.hostOption.getValue()+", port: "+this.portOption.getValue() + ", topic: "+this.topicOption.getValue());
-		kep = new KafkaEntranceProcessor(getConsumerProperties(this.hostOption.getValue(), this.portOption.getValue()), this.topicOption.getValue(), this.timeoutOption.getValue(), new OosSerializer());
-		kep.onCreate(0);
-		logger.info(kep!=null ? "KEP is not null" : "KEP is null");
-	}
-	
-	protected Properties getConsumerProperties(String BROKERHOST, String BROKERPORT) {
+    @Override
+    public void getDescription(StringBuilder sb, int indent) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    protected void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
+        logger.info("Initializing KEP with host: " + this.hostOption.getValue() + ", port: " + this.portOption.getValue() + ", topic: " + this.topicOption.getValue());
+        kep = new KafkaEntranceProcessor(getConsumerProperties(this.hostOption.getValue(), this.portOption.getValue()), this.topicOption.getValue(), this.timeoutOption.getValue(), new KafkaJsonMapper(Charset.forName("UTF-8")));
+        kep.onCreate(0);
+        logger.info(kep != null ? "KEP is not null" : "KEP is null");
+    }
+
+    protected Properties getConsumerProperties(String BROKERHOST, String BROKERPORT) {
         Properties consumerProps = new Properties();
         consumerProps.setProperty("bootstrap.servers", BROKERHOST + ":" + BROKERPORT);
         consumerProps.put("enable.auto.commit", "true");
@@ -136,6 +133,19 @@ public class KafkaStream extends AbstractOptionHandler implements InstanceStream
         consumerProps.setProperty("group.id", "test");
         consumerProps.setProperty("auto.offset.reset", "earliest");
         return consumerProps;
+    }
+
+    private Instances getDataset() {
+        if (kep.hasNext()) {
+            InstanceContentEvent ice = (InstanceContentEvent) kep.nextEvent();
+            Instances ic = ice.getInstance().dataset();
+            ic.add(ice.getInstance());
+            return ic;
+        } else {
+            logger.info("hasNext returned false!");
+            return null;
+        }
+
     }
 
 }
