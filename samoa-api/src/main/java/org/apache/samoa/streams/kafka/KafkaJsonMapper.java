@@ -43,7 +43,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 import org.apache.samoa.instances.DenseInstanceData;
 import org.apache.samoa.instances.InstanceData;
-import org.apache.samoa.instances.SingleClassInstanceData;
+//import org.apache.samoa.instances.SingleClassInstanceData;
 import org.apache.samoa.learners.InstanceContentEvent;
 
 /**
@@ -109,7 +109,7 @@ public class KafkaJsonMapper implements KafkaDeserializer<InstanceContentEvent>,
                 DenseInstanceData did = new DenseInstanceData(attributeValues);
                 return did;
             } else {
-                SingleClassInstanceData slid = new SingleClassInstanceData();
+                DenseInstanceData slid = new DenseInstanceData();
                 slid.setValue(0, classValues);
                 return slid;
             }
