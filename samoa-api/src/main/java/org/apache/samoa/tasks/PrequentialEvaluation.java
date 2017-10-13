@@ -21,6 +21,7 @@ package org.apache.samoa.tasks;
  */
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Properties;
 
 import org.apache.samoa.evaluation.BasicClassificationPerformanceEvaluator;
 import org.apache.samoa.evaluation.BasicRegressionPerformanceEvaluator;
@@ -35,6 +36,8 @@ import org.apache.samoa.learners.classifiers.trees.VerticalHoeffdingTree;
 import org.apache.samoa.streams.InstanceStream;
 import org.apache.samoa.streams.PrequentialSourceProcessor;
 import org.apache.samoa.streams.generators.RandomTreeGenerator;
+import org.apache.samoa.streams.kafka.KafkaDestinationProcessor;
+import org.apache.samoa.streams.kafka.OosSerializer;
 import org.apache.samoa.topology.ComponentFactory;
 import org.apache.samoa.topology.Stream;
 import org.apache.samoa.topology.Topology;
@@ -47,13 +50,19 @@ import com.github.javacliparser.Configurable;
 import com.github.javacliparser.FileOption;
 import com.github.javacliparser.IntOption;
 import com.github.javacliparser.StringOption;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import org.apache.samoa.core.ContentEvent;
+import org.apache.samoa.streams.kafka.KafkaSerializer;
 
 /**
- * Prequential Evaluation task is a scheme in evaluating performance of online classifiers which uses each instance for
- * testing online classifiers model and then it further uses the same instance for training the model(Test-then-train)
- * 
+ * Prequential Evaluation task is a scheme in evaluating performance of online
+ * classifiers which uses each instance for testing online classifiers model and
+ * then it further uses the same instance for training the
+ * model(Test-then-train)
+ *
  * @author Arinto Murdopo
- * 
+ *
  */
 public class PrequentialEvaluation implements Task, Configurable {
 
@@ -62,69 +71,54 @@ public class PrequentialEvaluation implements Task, Configurable {
   private static Logger logger = LoggerFactory.getLogger(PrequentialEvaluation.class);
 
   public ClassOption learnerOption = new ClassOption("learner", 'l', "Classifier to train.", Learner.class,
-      VerticalHoeffdingTree.class.getName());
+          VerticalHoeffdingTree.class.getName());
 
   public ClassOption streamTrainOption = new ClassOption("trainStream", 's', "Stream to learn from.",
-      InstanceStream.class,
-      RandomTreeGenerator.class.getName());
+          InstanceStream.class,
+          RandomTreeGenerator.class.getName());
 
   public ClassOption evaluatorOption = new ClassOption("evaluator", 'e',
-      "Classification performance evaluation method.",
-      PerformanceEvaluator.class, BasicClassificationPerformanceEvaluator.class.getName());
+          "Classification performance evaluation method.",
+          PerformanceEvaluator.class, BasicClassificationPerformanceEvaluator.class.getName());
 
   public IntOption instanceLimitOption = new IntOption("instanceLimit", 'i',
-      "Maximum number of instances to test/train on  (-1 = no limit).", 1000000, -1,
-      Integer.MAX_VALUE);
+          "Maximum number of instances to test/train on  (-1 = no limit).", 1000000, -1,
+          Integer.MAX_VALUE);
 
   public IntOption timeLimitOption = new IntOption("timeLimit", 't',
-      "Maximum number of seconds to test/train for (-1 = no limit).", -1, -1,
-      Integer.MAX_VALUE);
+          "Maximum number of seconds to test/train for (-1 = no limit).", -1, -1,
+          Integer.MAX_VALUE);
 
   public IntOption sampleFrequencyOption = new IntOption("sampleFrequency", 'f',
-      "How many instances between samples of the learning performance.", 100000,
-      0, Integer.MAX_VALUE);
-
-  // The frequency of saving model output e.g. predicted class and votes made for individual classes to a file 
-  // The name of the actual file to which model output will be saved is defined through resultFileOption
-  public IntOption labelSampleFrequencyOption = new IntOption("labelSampleFrequency", 'h',
-      "How many instances between samples of predicted labels and votes.", 1,
-      0, Integer.MAX_VALUE);
+          "How many instances between samples of the learning performance.", 100000,
+          0, Integer.MAX_VALUE);
 
   public StringOption evaluationNameOption = new StringOption("evaluationName", 'n', "Identifier of the evaluation",
-      "Prequential_"
+          "Prequential_"
           + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date()));
 
   public FileOption dumpFileOption = new FileOption("dumpFile", 'd', "File to append intermediate csv results to",
-      null, "csv", true);
-
-  // The name of the CSV file in which model output (and in the case of classification also votes for individual classes)
-  // will be saved
-  public FileOption resultFileOption = new FileOption("resultFile", 'g', "File to append intermediate model output to",
-      null, "csv", true);
+          null, "csv", true);
 
   // Default=0: no delay/waiting
   public IntOption sourceDelayOption = new IntOption("sourceDelay", 'w',
-      "How many microseconds between injections of two instances.", 0, 0, Integer.MAX_VALUE);
+          "How many microseconds between injections of two instances.", 0, 0, Integer.MAX_VALUE);
   // Batch size to delay the incoming stream: delay of x milliseconds after each
   // batch
   public IntOption batchDelayOption = new IntOption("delayBatchSize", 'b',
-      "The delay batch size: delay of x milliseconds after each batch ", 1, 1, Integer.MAX_VALUE);
+          "The delay batch size: delay of x milliseconds after each batch ", 1, 1, Integer.MAX_VALUE);
+
+  public StringOption kafkaBroker = new StringOption("KafkaOutputBroker", 'o', "Broker for outpu Kafka topic", "localhost");
+  public IntOption kafkaBrokerPort = new IntOption("KafkaOutputBrokerPort", 'p', "Broker for output Kafka topic (port)", 9092, 1, 65536);
+  public StringOption kafkaBrokerTopic = new StringOption("KafkaOutputTopic", 'k', "Broker for outpu Kafka topic", "samoa_test_results");
 
   protected PrequentialSourceProcessor preqSource;
-
-  // private PrequentialSourceTopologyStarter preqStarter;
-
-  // private EntranceProcessingItem sourcePi;
 
   protected Stream sourcePiOutputStream;
 
   private Learner classifier;
 
   private EvaluatorProcessor evaluator;
-
-  // private ProcessingItem evaluatorPi;
-
-  // private Stream evaluatorPiInputStream;
 
   protected Topology prequentialTopology;
 
@@ -150,7 +144,6 @@ public class PrequentialEvaluation implements Task, Configurable {
     }
 
     // instantiate PrequentialSourceProcessor and its output stream
-    // (sourcePiOutputStream)
     preqSource = new PrequentialSourceProcessor();
     preqSource.setStreamSource((InstanceStream) this.streamTrainOption.getValue());
     preqSource.setMaxNumInstances(instanceLimitOption.getValue());
@@ -159,13 +152,7 @@ public class PrequentialEvaluation implements Task, Configurable {
     builder.addEntranceProcessor(preqSource);
     logger.debug("Successfully instantiating PrequentialSourceProcessor");
 
-    // preqStarter = new PrequentialSourceTopologyStarter(preqSource,
-    // instanceLimitOption.getValue());
-    // sourcePi = builder.createEntrancePi(preqSource, preqStarter);
-    // sourcePiOutputStream = builder.createStream(sourcePi);
-
     sourcePiOutputStream = builder.createStream(preqSource);
-    // preqStarter.setInputStream(sourcePiOutputStream);
 
     // instantiate classifier and connect it to sourcePiOutputStream
     classifier = this.learnerOption.getValue();
@@ -177,16 +164,29 @@ public class PrequentialEvaluation implements Task, Configurable {
     if (!PrequentialEvaluation.isLearnerAndEvaluatorCompatible(classifier, evaluatorOptionValue)) {
       evaluatorOptionValue = getDefaultPerformanceEvaluatorForLearner(classifier);
     }
-    evaluator = new EvaluatorProcessor.Builder(evaluatorOptionValue)
-        .samplingFrequency(sampleFrequencyOption.getValue()).dumpFile(dumpFileOption.getFile())
-        .predictionFile(resultFileOption.getFile()).labelSamplingFrequency(labelSampleFrequencyOption.getValue())
-        .build();
 
-    // evaluatorPi = builder.createPi(evaluator);
-    // evaluatorPi.connectInputShuffleStream(evaluatorPiInputStream);
+    evaluator = new EvaluatorProcessor.Builder(evaluatorOptionValue)
+            .samplingFrequency(sampleFrequencyOption.getValue()).dumpFile(dumpFileOption.getFile()).build();
+
+    KafkaDestinationProcessor kafkaDestinationProcessor = new KafkaDestinationProcessor(getProducerProperties(
+            kafkaBroker.getValue(), kafkaBrokerPort.getValue() + ""),
+            kafkaBrokerTopic.getValue(),
+            new KafkaSerializer() {
+              // for convenience we will use anonymous impl here
+      @Override
+      public byte[] serialize(ContentEvent message) {
+        Gson gson = new GsonBuilder().serializeSpecialFloatingPointValues().create();
+        String ret = gson.toJson(message);
+        logger.debug("Sending result: " + ret);
+        return ret.getBytes();
+      }
+    });
+
     builder.addProcessor(evaluator);
+    builder.addProcessor(kafkaDestinationProcessor);
     for (Stream evaluatorPiInputStream : classifier.getResultStreams()) {
       builder.connectInputShuffleStream(evaluatorPiInputStream, evaluator);
+      builder.connectInputShuffleStream(evaluatorPiInputStream, kafkaDestinationProcessor);
     }
 
     logger.debug("Successfully instantiating EvaluatorProcessor");
@@ -217,10 +217,9 @@ public class PrequentialEvaluation implements Task, Configurable {
   // public TopologyStarter getTopologyStarter() {
   // return this.preqStarter;
   // }
-
   protected static boolean isLearnerAndEvaluatorCompatible(Learner learner, PerformanceEvaluator evaluator) {
-    return (learner instanceof RegressionLearner && evaluator instanceof RegressionPerformanceEvaluator) ||
-        (learner instanceof ClassificationLearner && evaluator instanceof ClassificationPerformanceEvaluator);
+    return (learner instanceof RegressionLearner && evaluator instanceof RegressionPerformanceEvaluator)
+            || (learner instanceof ClassificationLearner && evaluator instanceof ClassificationPerformanceEvaluator);
   }
 
   protected static PerformanceEvaluator getDefaultPerformanceEvaluatorForLearner(Learner learner) {
@@ -229,5 +228,15 @@ public class PrequentialEvaluation implements Task, Configurable {
     }
     // Default to BasicClassificationPerformanceEvaluator for all other cases
     return new BasicClassificationPerformanceEvaluator();
+  }
+
+  // Create Kafka producer properties
+  protected Properties getProducerProperties(String BROKERHOST, String BROKERPORT) {
+    Properties producerProps = new Properties();
+    producerProps.setProperty("bootstrap.servers", BROKERHOST + ":" + BROKERPORT);
+    producerProps.setProperty("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+    producerProps.setProperty("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+    producerProps.setProperty("group.id", "test");
+    return producerProps;
   }
 }
